@@ -50,6 +50,8 @@ defmodule KafkaEx.Protocol.Fetch do
     parse_topics(topics_size, rest, __MODULE__)
   end
 
+  def parse_response(nil), do: :unavailable
+
   def parse_partitions(0, rest, partitions), do: {partitions, rest}
   def parse_partitions(partitions_size, << partition :: 32-signed, error_code :: 16-signed, hw_mark_offset :: 64-signed,
   msg_set_size :: 32-signed, msg_set_data :: size(msg_set_size)-binary, rest :: binary >>, partitions) do

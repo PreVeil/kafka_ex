@@ -121,7 +121,7 @@ defmodule KafkaEx.Server0P8P2 do
 
     {response, state} = fetch(fetch_request, state)
     offset = case response do
-               :topic_not_found ->
+               err when err in [:topic_not_found, :unavailable] ->
                  fetch_request.offset
                _ ->
                  message = response |> hd |> Map.get(:partitions) |> hd
@@ -192,17 +192,21 @@ defmodule KafkaEx.Server0P8P2 do
           |> NetworkClient.send_sync_request(fetch_data, state.sync_timeout)
           |> Fetch.parse_response
         state = %{state | correlation_id: state.correlation_id + 1}
-        last_offset = response |> hd |> Map.get(:partitions) |> hd |> Map.get(:last_offset)
-        if last_offset != nil && fetch_request.auto_commit do
-          offset_commit_request = %OffsetCommit.Request{
-            topic: fetch_request.topic,
-            offset: last_offset,
-            partition: fetch_request.partition,
-            consumer_group: state.consumer_group}
-          {_, state} = offset_commit(state, offset_commit_request)
-          {response, state}
+        if response != :unavailable do
+          {:error, state}
         else
-          {response, state}
+          last_offset = response |> hd |> Map.get(:partitions) |> hd |> Map.get(:last_offset)
+          if last_offset != nil && fetch_request.auto_commit do
+            offset_commit_request = %OffsetCommit.Request{
+              topic: fetch_request.topic,
+              offset: last_offset,
+              partition: fetch_request.partition,
+              consumer_group: state.consumer_group}
+            {_, state} = offset_commit(state, offset_commit_request)
+            {response, state}
+          else
+            {response, state}
+          end
         end
     end
   end
