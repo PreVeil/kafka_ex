@@ -192,8 +192,8 @@ defmodule KafkaEx.Server0P8P2 do
           |> NetworkClient.send_sync_request(fetch_data, state.sync_timeout)
           |> Fetch.parse_response
         state = %{state | correlation_id: state.correlation_id + 1}
-        if response != :unavailable do
-          {:error, state}
+        if response == :unavailable do
+          {:unavailable, state}
         else
           last_offset = response |> hd |> Map.get(:partitions) |> hd |> Map.get(:last_offset)
           if last_offset != nil && fetch_request.auto_commit do
