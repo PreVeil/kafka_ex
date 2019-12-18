@@ -337,9 +337,30 @@ defmodule KafkaEx.Server do
       end
 
       def kafka_server_metadata(topic, state) do
-        {correlation_id, metadata} = retrieve_metadata(state.brokers, state.correlation_id, state.sync_timeout, topic)
+        check_brokers_sockets!(state.brokers) 
+
+        {correlation_id, metadata} = try do
+          retrieve_metadata(state.brokers, state.correlation_id, state.sync_timeout, topic)
+        rescue e ->
+          sleep_for_reconnect()
+          Kernel.reraise(e, System.stacktrace())
+        end
         updated_state = %{state | metadata: metadata, correlation_id: correlation_id}
         {:reply, metadata, updated_state}
+      end
+
+      defp sleep_for_reconnect() do
+        Process.sleep(Application.get_env(:kafka_ex, :sleep_for_reconnect, 400))
+      end
+
+      defp check_brokers_sockets!(brokers) do
+        any_socket_opened = brokers
+        |> Enum.map(fn %Broker{socket: socket} -> !is_nil(socket) end)
+        |> Enum.reduce(&(&1 || &2))
+        if !any_socket_opened do
+          sleep_for_reconnect()
+          raise "Brokers sockets are not opened"
+        end
       end
 
       def kafka_server_create_stream(handler, handler_init, state) do

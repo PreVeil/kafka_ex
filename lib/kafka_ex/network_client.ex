@@ -65,4 +65,8 @@ defmodule KafkaEx.NetworkClient do
   defp build_socket_options(ssl_options) do
     build_socket_options([]) ++ ssl_options
   end
+
+  def send_sync_request(nil, _, _) do
+    {:error, :no_broker}
+  end
 end

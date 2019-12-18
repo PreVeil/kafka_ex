@@ -28,7 +28,7 @@ defmodule KafkaEx.Protocol.JoinGroup do
     @moduledoc false
     defstruct error_code: nil, generation_id: 0, leader_id: nil, member_id: nil, members: []
     @type t :: %Response{error_code: atom | integer, generation_id: integer,
-                         leader_id: binary, member_id: binary, members: [binary]}
+                         leader_id: binary, member_id: binary, members: [binary]} | {:error, atom}
   end
 
   @spec create_request(Request.t) :: binary

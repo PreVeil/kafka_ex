@@ -33,7 +33,13 @@ defmodule KafkaEx.Server0P8P0 do
     metadata_update_interval = Keyword.get(args, :metadata_update_interval, @metadata_update_interval)
     brokers = Enum.map(uris, fn({host, port}) -> %Broker{host: host, port: port, socket: NetworkClient.create_socket(host, port)} end)
     sync_timeout = Keyword.get(args, :sync_timeout, Application.get_env(:kafka_ex, :sync_timeout, @sync_timeout))
-    {correlation_id, metadata} = retrieve_metadata(brokers, 0, sync_timeout)
+    check_brokers_sockets!(brokers)
+    {correlation_id, metadata} = try do
+      retrieve_metadata(brokers, 0, sync_timeout)
+    rescue e ->
+      sleep_for_reconnect()
+      Kernel.reraise(e, System.stacktrace())
+    end
     state = %State{metadata: metadata, brokers: brokers, correlation_id: correlation_id, metadata_update_interval: metadata_update_interval, worker_name: name, sync_timeout: sync_timeout}
     # Get the initial "real" broker list and start a regular refresh cycle.
     state = update_metadata(state)
